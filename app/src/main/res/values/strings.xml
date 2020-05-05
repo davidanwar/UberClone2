@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">UberClone2</string>
+    <string name="title_activity_passenger">Passenger</string>
+    <string name="title_activity_view_map_location">Map</string>
+</resources>
