@@ -6,6 +6,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -47,6 +48,7 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
     private ArrayList<String> nearByDriveRequest;
     private ArrayAdapter adapter;
     private ArrayList<Double> passengerLatitude, passengerLongitude;
+    private ArrayList<String> requestCarUserName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +62,7 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
         nearByDriveRequest = new ArrayList<>();
         passengerLatitude = new ArrayList<>();
         passengerLongitude = new ArrayList<>();
+        requestCarUserName = new ArrayList<>();
         adapter = new ArrayAdapter(DriverRequestListActivity.this, android.R.layout.simple_list_item_1, nearByDriveRequest);
         listView.setAdapter(adapter);
         // agar tidak mengulang menampilkan data di list view
@@ -121,7 +124,6 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
 
     @Override
     public void onClick(View view) {
-        
 
         if (Build.VERSION.SDK_INT < 23){
             Location currentPessengerLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -160,6 +162,9 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
                             if (passengerLatitude.size() > 0){
                                 passengerLatitude.clear();
                             }
+                            if (requestCarUserName.size() > 0){
+                                requestCarUserName.clear();
+                            }
                             for (ParseObject nearRequest : objects) {
                                 // di parse server "PassengerLocation" adalah tipe GeoPoint maka supaya compatible diberi typecasting (ParseGeoPoint)
                                 // jika di parse server buka bertipe GeoPoint kemudian di typecasting dengan GeoPoint maka aplikasi akan crash
@@ -173,6 +178,7 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
                                 nearByDriveRequest.add("There are " + roundedDistanceValue + " miles to " + nearRequest.get("username"));
                                 passengerLatitude.add(pLocation.getLatitude());
                                 passengerLongitude.add(pLocation.getLongitude());
+                                requestCarUserName.add(nearRequest.get("username") + "");
                             }
                             adapter.notifyDataSetChanged();
                         } else {
@@ -193,10 +199,8 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
         if(requestCode == 1000 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
             if (ContextCompat.checkSelfPermission(DriverRequestListActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-                // kode di bawah tidak butuh lagi karena sudah dideklarasikan di clickMethode.
-                // jika kode ini ditulis maka akan terjadi penguilangan dua kali pada listView
-                //Location currentDriverLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                //updateRequestListView(currentDriverLocation);
+                Location currentDriverLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                updateRequestListView(currentDriverLocation);
             }
 
         }
@@ -204,6 +208,20 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+            Location cdLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (cdLocation != null){
+                Intent intent = new Intent(this, ViewMapLocationActivity.class);
+                intent.putExtra("dLatitude", cdLocation.getLatitude());
+                intent.putExtra("dLongitude", cdLocation.getLongitude());
+                intent.putExtra("pLatitude", passengerLatitude.get(position));
+                intent.putExtra("pLongitude", passengerLongitude.get(position));
+                intent.putExtra("rUserName", requestCarUserName.get(position));
+                startActivity(intent);
+            }
+
+        }
+
 
     }
 }

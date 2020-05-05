@@ -2,18 +2,36 @@ package com.example.uberclone2;
 
 import androidx.fragment.app.FragmentActivity;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.parse.FindCallback;
+import com.parse.ParseException;
+import com.parse.ParseObject;
+import com.parse.ParseQuery;
+import com.parse.ParseUser;
+import com.parse.SaveCallback;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ViewMapLocationActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+    private Button btnRide;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +41,42 @@ public class ViewMapLocationActivity extends FragmentActivity implements OnMapRe
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        btnRide = findViewById(R.id.btnRide);
+        btnRide.setText("I Want To Give " + getIntent().getStringExtra("rUserName") + " A Ride");
+        btnRide.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(ViewMapLocationActivity.this, getIntent().getStringExtra("rUserName"), Toast.LENGTH_SHORT).show();
+                ParseQuery<ParseObject> carRequestQuery = ParseQuery.getQuery("RequestCar");
+                carRequestQuery.whereDoesNotExist("driverOfMe");
+                carRequestQuery.whereEqualTo("username", getIntent().getStringExtra("rUserName"));
+                carRequestQuery.findInBackground(new FindCallback<ParseObject>() {
+                    @Override
+                    public void done(List<ParseObject> objects, ParseException e) {
+                        if (objects.size() > 0 && e ==  null){
+                            for (ParseObject uberRequest : objects){
+                                uberRequest.put("driverOfMe", ParseUser.getCurrentUser().getUsername());
+                                uberRequest.saveInBackground(new SaveCallback() {
+                                    @Override
+                                    public void done(ParseException e) {
+                                        if (e == null){
+                                            Intent googleIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://maps.google.com/maps?saddr="
+                                                    + getIntent().getDoubleExtra("dLatitude", 0 )
+                                                    + ", " + getIntent().getDoubleExtra("dLongitude", 0)
+                                                    + "&" + "daddr=" + getIntent().getDoubleExtra("pLatitude", 0) + ", " + getIntent().getDoubleExtra("pLongitude", 0 )));
+                                            startActivity(googleIntent);
+                                        }
+                                    }
+                                });
+
+                            }
+                        }
+                    }
+                });
+
+             }
+        });
     }
 
 
@@ -39,9 +93,34 @@ public class ViewMapLocationActivity extends FragmentActivity implements OnMapRe
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        //Toast.makeText(this, getIntent().getDoubleExtra("dLatitude", 0) + "", Toast.LENGTH_SHORT).show();
+
         // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        LatLng dLocation = new LatLng(getIntent().getDoubleExtra("dLatitude", 0), getIntent().getDoubleExtra("dLongitude", 0));
+//        mMap.addMarker(new MarkerOptions().position(dLocation).title("Driver Location"));
+//        mMap.moveCamera(CameraUpdateFactory.newLatLng(dLocation));
+
+        LatLng pLocation = new LatLng(getIntent().getDoubleExtra("pLatitude", 0), getIntent().getDoubleExtra("pLongitude", 0));
+////        mMap.addMarker(new MarkerOptions().position(pLocation).title("Passenger Location"));
+////        mMap.moveCamera(CameraUpdateFactory.newLatLng(pLocation));
+
+        // mendapatkan marker driver dan passenger sekaligus dalam 1 map
+
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+        Marker driverMarker = mMap.addMarker(new MarkerOptions().position(dLocation).title("Driver Location"));
+        Marker passengerMarker = mMap.addMarker(new MarkerOptions().position(pLocation).title("Passenger Location"));
+
+        ArrayList<Marker> myMarker = new ArrayList<>();
+        myMarker.add(driverMarker);
+        myMarker.add(passengerMarker);
+
+        for (Marker marker : myMarker){
+            builder.include(marker.getPosition());
+        }
+
+        LatLngBounds bounds = builder.build();
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 0);
+        mMap.animateCamera(cameraUpdate);
+
     }
 }
