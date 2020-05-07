@@ -34,6 +34,7 @@ import com.parse.ParseGeoPoint;
 import com.parse.ParseObject;
 import com.parse.ParseQuery;
 import com.parse.ParseUser;
+import com.parse.SaveCallback;
 
 import java.sql.Driver;
 import java.util.ArrayList;
@@ -71,29 +72,7 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
         locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
 
         if (Build.VERSION.SDK_INT < 23 || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
-            locationListener = new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {
-                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-
-                }
-
-                @Override
-                public void onStatusChanged(String provider, int status, Bundle extras) {
-
-                }
-
-                @Override
-                public void onProviderEnabled(String provider) {
-
-                }
-
-                @Override
-                public void onProviderDisabled(String provider) {
-
-                }
-            };
-
+            initializeLocationListener();
         }
 
 
@@ -144,6 +123,8 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
         if (driverLocation != null) {
             // agar tidak mengulang menampilkan data di list view
 
+            saveDriverLocationToParse(driverLocation);
+
             final ParseGeoPoint driverCurrentLocation = new ParseGeoPoint(driverLocation.getLatitude(), driverLocation.getLongitude());
             ParseQuery<ParseObject> parseCarQuery = ParseQuery.getQuery("RequestCar");
             parseCarQuery.whereNear("passengerLocation", driverCurrentLocation);
@@ -193,11 +174,13 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
         }
     }
 
+    // kode dieksekusi setelah user mengakses permission
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if(requestCode == 1000 && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
             if (ContextCompat.checkSelfPermission(DriverRequestListActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+                initializeLocationListener();
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
                 Location currentDriverLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 updateRequestListView(currentDriverLocation);
@@ -221,7 +204,45 @@ public class DriverRequestListActivity extends AppCompatActivity implements View
             }
 
         }
+    }
 
+    private void initializeLocationListener(){
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+
+            }
+        };
+    }
+
+    private void saveDriverLocationToParse(Location location){
+        ParseUser driver = ParseUser.getCurrentUser();
+        ParseGeoPoint driverLocation = new ParseGeoPoint(location.getLatitude(), location.getLongitude());
+        driver.put("driverLocation", driverLocation);
+        driver.saveInBackground(new SaveCallback() {
+            @Override
+            public void done(ParseException e) {
+                if (e == null){
+                    Toast.makeText(DriverRequestListActivity.this, "Driver Location Saved", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
 
     }
 }

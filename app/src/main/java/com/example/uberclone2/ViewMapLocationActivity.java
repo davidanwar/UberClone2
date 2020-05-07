@@ -49,13 +49,14 @@ public class ViewMapLocationActivity extends FragmentActivity implements OnMapRe
             public void onClick(View view) {
                 Toast.makeText(ViewMapLocationActivity.this, getIntent().getStringExtra("rUserName"), Toast.LENGTH_SHORT).show();
                 ParseQuery<ParseObject> carRequestQuery = ParseQuery.getQuery("RequestCar");
-                carRequestQuery.whereDoesNotExist("driverOfMe");
+                //carRequestQuery.whereDoesNotExist("driverOfMe");
                 carRequestQuery.whereEqualTo("username", getIntent().getStringExtra("rUserName"));
                 carRequestQuery.findInBackground(new FindCallback<ParseObject>() {
                     @Override
                     public void done(List<ParseObject> objects, ParseException e) {
                         if (objects.size() > 0 && e ==  null){
                             for (ParseObject uberRequest : objects){
+                                uberRequest.put("requestAccepted", true);
                                 uberRequest.put("driverOfMe", ParseUser.getCurrentUser().getUsername());
                                 uberRequest.saveInBackground(new SaveCallback() {
                                     @Override
